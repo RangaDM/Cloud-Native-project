@@ -1,4 +1,4 @@
-# Microservices Communication Patterns Demo
+# Microservices Demo
 
 This project demonstrates both **Synchronous** and **Asynchronous** communication patterns between microservices using a simple e-commerce scenario.
 

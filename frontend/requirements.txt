@@ -1,0 +1,3 @@
+# Frontend server dependencies
+# No external dependencies needed for the basic HTTP server
+# The serve_frontend.py uses only Python standard library 

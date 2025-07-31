@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - microservices-network
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - INVENTORY_SERVICE_URL=http://inventory-service:8002
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8003
+    depends_on:
+      - redis
+      - inventory-service
+      - notification-service
+    networks:
+      - microservices-network
+    volumes:
+      - ./order-service:/app/order-service
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8003
+    depends_on:
+      - redis
+      - notification-service
+    networks:
+      - microservices-network
+    volumes:
+      - ./inventory-service:/app/inventory-service
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - microservices-network
+    volumes:
+      - ./notification-service:/app/notification-service
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    depends_on:
+      - order-service
+      - inventory-service
+      - notification-service
+    networks:
+      - microservices-network
+    volumes:
+      - ./frontend:/app
+
+networks:
+  microservices-network:
+    driver: bridge 

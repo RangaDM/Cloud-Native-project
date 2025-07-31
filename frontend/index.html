@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microservices Demo</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-shopping-cart"></i> E-Commerce Management System</h1>
+            <p>Order Management • Inventory Control • Notification Center</p>
+        </header>
+
+        <div class="services-grid">
+            <!-- Order Service Section -->
+            <div class="service-card">
+                <div class="service-header">
+                    <i class="fas fa-shopping-cart"></i>
+                    <h2>Order Service</h2>
+                    <span class="status" id="order-status">Checking...</span>
+                </div>
+                
+                <div class="service-content">
+                    <h3>Create New Order</h3>
+                    <form id="order-form">
+                        <div class="form-group">
+                            <label for="customer-name">Customer Name:</label>
+                            <input type="text" id="customer-name" value="John Doe" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="customer-email">Customer Email:</label>
+                            <input type="email" id="customer-email" value="john@example.com" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Order Items:</label>
+                            <div id="order-items">
+                                <div class="order-item">
+                                    <select class="product-select">
+                                        <option value="prod001">Laptop ($999.99)</option>
+                                        <option value="prod002">Mouse ($29.99)</option>
+                                        <option value="prod003">Keyboard ($79.99)</option>
+                                        <option value="prod004">NoteBook ($15.00)</option>
+                                    </select>
+                                    <input type="number" class="quantity" value="1" min="1" max="10">
+                                    <button type="button" class="remove-item" onclick="removeOrderItem(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-secondary" onclick="addOrderItem()">
+                                <i class="fas fa-plus"></i> Add Item
+                            </button>
+                        </div>
+                        
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-paper-plane"></i> Create Order
+                        </button>
+                    </form>
+                    
+                    <div class="results" id="order-results"></div>
+                </div>
+            </div>
+
+            <!-- Inventory Service Section -->
+            <div class="service-card">
+                <div class="service-header">
+                    <i class="fas fa-boxes"></i>
+                    <h2>Inventory Service</h2>
+                    <span class="status" id="inventory-status">Checking...</span>
+                </div>
+                
+                <div class="service-content">
+                    <h3>Product Inventory</h3>
+                    <div class="inventory-grid" id="inventory-grid">
+                        <!-- Products will be loaded here -->
+                    </div>
+                    
+                    <div class="inventory-actions">
+                        <button class="btn-secondary" onclick="refreshInventory()">
+                            <i class="fas fa-sync"></i> Refresh Inventory
+                        </button>
+                        <button class="btn-secondary" onclick="testLowStock()">
+                            <i class="fas fa-exclamation-triangle"></i> Test Low Stock Alert
+                        </button>
+                    </div>
+                    
+                    <div class="results" id="inventory-results"></div>
+                </div>
+            </div>
+
+            <!-- Notification Service Section -->
+            <div class="service-card">
+                <div class="service-header">
+                    <i class="fas fa-bell"></i>
+                    <h2>Notification Service</h2>
+                    <span class="status" id="notification-status">Checking...</span>
+                </div>
+                
+                <div class="service-content">
+                    <h3>Notifications</h3>
+                    <div class="notification-controls">
+                        <button class="btn-secondary" onclick="refreshNotifications()">
+                            <i class="fas fa-sync"></i> Refresh Notifications
+                        </button>
+                        <button class="btn-secondary" onclick="clearNotifications()">
+                            <i class="fas fa-trash"></i> Clear All
+                        </button>
+                    </div>
+                    
+                    <div class="notifications-list" id="notifications-list">
+                        <!-- Notifications will be loaded here -->
+                    </div>
+                    
+                    <div class="results" id="notification-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Activity Log -->
+        <div class="communication-log">
+            <h3><i class="fas fa-chart-line"></i> System Activity Log</h3>
+            <div class="log-controls">
+                <button class="btn-secondary" onclick="clearLog()">
+                    <i class="fas fa-trash"></i> Clear Log
+                </button>
+                <button class="btn-secondary" onclick="exportLog()">
+                    <i class="fas fa-download"></i> Export Log
+                </button>
+            </div>
+            <div class="log-content" id="communication-log">
+                <!-- System events will be logged here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 

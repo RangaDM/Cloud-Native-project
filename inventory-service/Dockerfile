@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt || (echo "Failed to install requirements" && cat requirements.txt && exit 1)
 
 # Copy service code
 COPY inventory-service/ ./inventory-service/

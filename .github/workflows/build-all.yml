@@ -24,6 +24,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    - name: Validate requirements
+      run: |
+        echo "🔍 Validating requirements.txt..."
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt --dry-run || (echo "❌ Requirements validation failed" && exit 1)
+        echo "✅ Requirements validation passed"
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     - name: Log in to Docker Hub
@@ -47,6 +53,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    - name: Validate requirements
+      run: |
+        echo "🔍 Validating requirements.txt..."
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt --dry-run || (echo "❌ Requirements validation failed" && exit 1)
+        echo "✅ Requirements validation passed"
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     - name: Log in to Docker Hub
@@ -70,6 +82,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    - name: Validate requirements
+      run: |
+        echo "🔍 Validating requirements.txt..."
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt --dry-run || (echo "❌ Requirements validation failed" && exit 1)
+        echo "✅ Requirements validation passed"
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     - name: Log in to Docker Hub

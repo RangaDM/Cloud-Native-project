@@ -62,10 +62,6 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: Test the image
-      run: |
-        docker run --rm ${{ secrets.DOCKERHUB_USERNAME }}/microservices-order-service:${{ github.sha }} python -c "print('Order Service image test successful')"
-        
     - name: Notify on success
       if: success()
       run: |

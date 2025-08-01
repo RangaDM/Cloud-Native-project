@@ -29,12 +29,14 @@ app.add_middleware(
 def get_redis_url():
     """Get Redis URL from service discovery or environment variable"""
     try:
-        # Try to get Redis URL from service discovery
-        redis_url = get_service_url("redis", 6379)
-        if redis_url:
-            # Convert HTTP URL to Redis URL format
-            redis_url = redis_url.replace("http://", "redis://")
-            return redis_url
+        # Try to get Redis IP from service discovery
+        redis_service_url = get_service_url("redis", 6379)
+        if redis_service_url:
+            # Extract IP from the service URL and create Redis URL
+            from urllib.parse import urlparse
+            parsed_url = urlparse(redis_service_url)
+            redis_ip = parsed_url.hostname
+            return f"redis://{redis_ip}:6379"
     except Exception as e:
         print(f"⚠️ Failed to get Redis URL from service discovery: {e}")
     

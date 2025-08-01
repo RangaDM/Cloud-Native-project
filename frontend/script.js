@@ -1,9 +1,9 @@
-// Service URLs - Use localhost for browser access (Docker networking handled by reverse proxy)
-const SERVICES = {
-    ORDER: 'http://localhost:8001',
-    INVENTORY: 'http://localhost:8002',
-    NOTIFICATION: 'http://localhost:8003'
-};
+// Service discovery configuration
+const GITHUB_REPO_URL = 'https://github.com/RangaDM/cloud-components-config';
+const SERVICE_CONFIG_FILE = 'service_config.json';
+
+// Service URLs - Will be loaded dynamically from GitHub
+let SERVICES = {};
 
 // Communication log
 let communicationLog = [];
@@ -14,20 +14,73 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function initializeApp() {
-    // Check service health
-    await checkServiceHealth();
-    
-    // Load initial data
-    await loadInventory();
-    await loadNotifications();
-    await loadProductsForOrder(); // Load products for order form
-    
-    // Set up event listeners
-    setupEventListeners();
-    
-    // Start periodic updates
-    setInterval(checkServiceHealth, 30000); // Check every 30 seconds
-    setInterval(loadNotifications, 10000); // Refresh notifications every 10 seconds
+    try {
+        // Load service configurations from GitHub
+        await loadServiceConfigurations();
+        
+        // Check service health
+        await checkServiceHealth();
+        
+        // Load initial data
+        await loadInventory();
+        await loadNotifications();
+        await loadProductsForOrder(); // Load products for order form
+        
+        // Set up event listeners
+        setupEventListeners();
+        
+        // Start periodic updates
+        setInterval(checkServiceHealth, 30000); // Check every 30 seconds
+        setInterval(loadNotifications, 10000); // Refresh notifications every 10 seconds
+        setInterval(loadServiceConfigurations, 300000); // Reload configs every 5 minutes
+    } catch (error) {
+        console.error('❌ Failed to initialize application:', error);
+        showResult('order-results', 'error', 'Failed to load service configurations. Please check your GitHub repository.');
+    }
+}
+
+async function loadServiceConfigurations() {
+    try {
+        console.log('🔍 Loading service configurations from GitHub...');
+        
+        // Convert GitHub URL to raw URL
+        const rawUrl = GITHUB_REPO_URL.replace('github.com', 'raw.githubusercontent.com') + '/main/' + SERVICE_CONFIG_FILE;
+        console.log("🔍 Fetching from URL:", rawUrl);
+        
+        const response = await fetch(rawUrl);
+        if (response.ok) {
+            const config = await response.json();
+            
+            // Update service URLs with discovered IPs
+            if (config['order-service']) {
+                SERVICES.ORDER = `http://${config['order-service']}:8001`;
+                console.log(`✅ Order service URL: ${SERVICES.ORDER}`);
+            }
+            if (config['inventory-service']) {
+                SERVICES.INVENTORY = `http://${config['inventory-service']}:8002`;
+                console.log(`✅ Inventory service URL: ${SERVICES.INVENTORY}`);
+            }
+            if (config['notification-service']) {
+                SERVICES.NOTIFICATION = `http://${config['notification-service']}:8003`;
+                console.log(`✅ Notification service URL: ${SERVICES.NOTIFICATION}`);
+            }
+            if (config['redis']) {
+                SERVICES.REDIS = `redis://${config['redis']}:6379`;
+                console.log(`✅ Redis URL: ${SERVICES.REDIS}`);
+            }
+            
+            console.log('✅ Service configurations loaded successfully');
+            logCommunication('sync', 'Frontend', 'Service configurations loaded from GitHub');
+        } else {
+            console.error('❌ Failed to load service configurations from GitHub');
+            logCommunication('error', 'Frontend', 'Failed to load service configurations from GitHub');
+            throw new Error('Service configurations not available');
+        }
+    } catch (error) {
+        console.error('❌ Error loading service configurations:', error);
+        logCommunication('error', 'Frontend', `Service configuration error: ${error.message}`);
+        throw error;
+    }
 }
 
 function setupEventListeners() {

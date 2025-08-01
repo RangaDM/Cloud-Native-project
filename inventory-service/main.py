@@ -8,6 +8,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# Import service discovery
+from service_discovery import initialize_service_discovery, get_service_url
+
 # Initialize FastAPI app
 app = FastAPI(title="Inventory Service", version="1.0.0")
 
@@ -20,9 +23,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Service discovery initialization
+GITHUB_REPO_URL = os.getenv("GITHUB_REPO_URL", "https://github.com/RangaDM/cloud-components-config")
+SERVICE_NAME = os.getenv("SERVICE_NAME", "inventory-service")
+SERVICE_IP = os.getenv("SERVICE_IP", "localhost")
+
+# Initialize service discovery
+try:
+    initialize_service_discovery(GITHUB_REPO_URL, SERVICE_NAME, SERVICE_IP)
+    print(f"✅ Service discovery initialized for {SERVICE_NAME}")
+except Exception as e:
+    print(f"⚠️ Failed to initialize service discovery: {e}")
+
 # Redis connection for async communication
+def get_redis_url():
+    """Get Redis URL from service discovery or environment variable"""
+    try:
+        # Try to get Redis URL from service discovery
+        redis_url = get_service_url("redis", 6379)
+        if redis_url:
+            # Convert HTTP URL to Redis URL format
+            redis_url = redis_url.replace("http://", "redis://")
+            return redis_url
+    except Exception as e:
+        print(f"⚠️ Failed to get Redis URL from service discovery: {e}")
+    
+    # Fallback to environment variable
+    return os.getenv("REDIS_URL", "redis://localhost:6379")
+
 redis_client = redis.Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379"),
+    get_redis_url(),
     decode_responses=True
 )
 

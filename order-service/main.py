@@ -10,6 +10,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# Import service discovery
+from service_discovery import initialize_service_discovery, get_service_url
+
 # Initialize FastAPI app
 app = FastAPI(title="Order Service", version="1.0.0")
 
@@ -23,14 +26,41 @@ app.add_middleware(
 )
 
 # Redis connection for async communication
+def get_redis_url():
+    """Get Redis URL from service discovery or environment variable"""
+    try:
+        # Try to get Redis URL from service discovery
+        redis_url = get_service_url("redis", 6379)
+        if redis_url:
+            # Convert HTTP URL to Redis URL format
+            redis_url = redis_url.replace("http://", "redis://")
+            return redis_url
+    except Exception as e:
+        print(f"⚠️ Failed to get Redis URL from service discovery: {e}")
+    
+    # Fallback to environment variable
+    return os.getenv("REDIS_URL", "redis://localhost:6379")
+
 redis_client = redis.Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379"),
+    get_redis_url(),
     decode_responses=True
 )
 
-# Service URLs for synchronous communication
-INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://localhost:8002")
-NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8003")
+# Service discovery initialization
+GITHUB_REPO_URL = os.getenv("GITHUB_REPO_URL", "https://github.com/RangaDM/cloud-components-config")
+SERVICE_NAME = os.getenv("SERVICE_NAME", "order-service")
+SERVICE_IP = os.getenv("SERVICE_IP", "localhost")
+
+# Initialize service discovery
+try:
+    initialize_service_discovery(GITHUB_REPO_URL, SERVICE_NAME, SERVICE_IP)
+    print(f"✅ Service discovery initialized for {SERVICE_NAME}")
+except Exception as e:
+    print(f"⚠️ Failed to initialize service discovery: {e}")
+
+# Fallback URLs for synchronous communication (used if service discovery fails)
+# INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://localhost:8002")
+# NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8003")
 
 # In-memory storage for orders (in production, use a database)
 orders_db = {}
@@ -83,12 +113,17 @@ async def create_order(order_request: CreateOrderRequest):
     
     # Step 1: Synchronous communication - Check inventory
     print("📞 SYNC: Checking inventory availability...")
+    
+    # Get inventory service URL dynamically
+    inventory_url = get_service_url("inventory-service", 8002) or INVENTORY_SERVICE_URL
+    print(f"🔗 Using inventory service URL: {inventory_url}")
+    
     async with httpx.AsyncClient() as client:
         try:
             # Check each product's availability
             for item in order_request.items:
                 response = await client.get(
-                    f"{INVENTORY_SERVICE_URL}/products/{item.product_id}"
+                    f"{inventory_url}/products/{item.product_id}"
                 )
                 if response.status_code != 200:
                     raise HTTPException(
@@ -109,7 +144,7 @@ async def create_order(order_request: CreateOrderRequest):
             print("📞 SYNC: Updating inventory...")
             for item in order_request.items:
                 response = await client.put(
-                    f"{INVENTORY_SERVICE_URL}/products/{item.product_id}/stock",
+                    f"{inventory_url}/products/{item.product_id}/stock",
                     json={"quantity": -item.quantity}  # Reduce stock
                 )
                 if response.status_code != 200:
@@ -125,7 +160,7 @@ async def create_order(order_request: CreateOrderRequest):
             total_amount = 0.0
             for item in order_request.items:
                 # Get product details to get the real price
-                response = await client.get(f"{INVENTORY_SERVICE_URL}/products/{item.product_id}")
+                response = await client.get(f"{inventory_url}/products/{item.product_id}")
                 if response.status_code == 200:
                     product_data = response.json()
                     item_total = item.quantity * product_data["price"]

@@ -41,25 +41,27 @@ except Exception as e:
 def get_redis_url():
     """Get Redis URL from service discovery or environment variable"""
     try:
-        # Try to get Redis URL from service discovery
-        redis_url = get_service_url("redis", 6379)
-        if redis_url:
-            # Convert HTTP URL to Redis URL format
-            redis_url = redis_url.replace("http://", "redis://")
-            return redis_url
+        # Try to get Redis IP from service discovery
+        redis_service_url = get_service_url("redis", 6379)
+        if redis_service_url:
+            # Extract IP from the service URL and create Redis URL
+            from urllib.parse import urlparse
+            parsed_url = urlparse(redis_service_url)
+            redis_ip = parsed_url.hostname
+            return f"redis://{redis_ip}:6379"
     except Exception as e:
         print(f"⚠️ Failed to get Redis URL from service discovery: {e}")
     
     # Fallback to environment variable
-    return os.getenv("REDIS_URL", "redis://localhost:6379")
+    # return os.getenv("REDIS_URL", "redis://localhost:6379")
 
 redis_client = redis.Redis.from_url(
     get_redis_url(),
     decode_responses=True
 )
 
-# In-memory storage for notifications (in production, use a database)
-notifications_db = []
+# Redis storage for notifications (in production, use a database)
+NOTIFICATIONS_KEY = "notifications_db"
 
 # Pydantic models
 class Notification(BaseModel):
@@ -81,8 +83,21 @@ async def health_check():
 
 @app.get("/notifications")
 async def get_notifications():
-    """Get all notifications"""
-    return {"notifications": notifications_db}
+    """Get all notifications from Redis"""
+    try:
+        # Get all notifications from Redis
+        notifications = redis_client.lrange(NOTIFICATIONS_KEY, 0, -1)
+        # Parse JSON strings back to dictionaries
+        parsed_notifications = []
+        for notification in notifications:
+            try:
+                parsed_notifications.append(json.loads(notification))
+            except json.JSONDecodeError:
+                continue
+        return {"notifications": parsed_notifications}
+    except Exception as e:
+        print(f"❌ Error getting notifications from Redis: {e}")
+        return {"notifications": []}
 
 @app.post("/notifications/test")
 async def send_test_notification(request: TestNotificationRequest):
@@ -92,7 +107,16 @@ async def send_test_notification(request: TestNotificationRequest):
         message=request.message,
         recipient=request.recipient
     )
-    notifications_db.append(notification.dict())
+    try:
+        # Store notification in Redis
+        notification_dict = notification_to_dict(notification)
+        print(f"🔍 DEBUG: Test notification dict: {notification_dict}")
+        redis_client.lpush(NOTIFICATIONS_KEY, json.dumps(notification_dict))
+        print(f"✅ Test notification stored in Redis: {notification.notification_id}")
+    except Exception as e:
+        print(f"❌ Error storing notification in Redis: {e}")
+        import traceback
+        print(f"🔍 DEBUG: Full error traceback: {traceback.format_exc()}")
     return notification
 
 def create_notification(notification_type: str, message: str, recipient: str) -> Notification:
@@ -106,6 +130,13 @@ def create_notification(notification_type: str, message: str, recipient: str) ->
         timestamp=datetime.now(),
         status="sent"
     )
+
+def notification_to_dict(notification: Notification) -> dict:
+    """Convert notification to dictionary with serializable datetime"""
+    notification_dict = notification.dict()
+    # Convert datetime to ISO string for JSON serialization
+    notification_dict["timestamp"] = notification_dict["timestamp"].isoformat()
+    return notification_dict
 
 def process_notification(notification_data: Dict[str, Any]):
     """
@@ -128,8 +159,16 @@ def process_notification(notification_data: Dict[str, Any]):
                 recipient=user_id
             )
             
-            notifications_db.append(notification.dict())
-            print(f"📧 ASYNC: Order confirmation sent to {user_id}: {message}")
+            try:
+                # Store notification in Redis
+                notification_dict = notification_to_dict(notification)
+                print(f"🔍 DEBUG: Notification dict: {notification_dict}")
+                redis_client.lpush(NOTIFICATIONS_KEY, json.dumps(notification_dict))
+                print(f"📧 ASYNC: Order confirmation sent to {user_id}: {message}")
+            except Exception as e:
+                print(f"❌ Error storing order confirmation in Redis: {e}")
+                import traceback
+                print(f"🔍 DEBUG: Full error traceback: {traceback.format_exc()}")
             
         elif notification_type == "low_stock_alert":
             # Process low stock alert
@@ -144,8 +183,16 @@ def process_notification(notification_data: Dict[str, Any]):
                 recipient="admin@company.com"
             )
             
-            notifications_db.append(notification.dict())
-            print(f"⚠️ ASYNC: Low stock alert sent: {message}")
+            try:
+                # Store notification in Redis
+                notification_dict = notification_to_dict(notification)
+                print(f"🔍 DEBUG: Low stock notification dict: {notification_dict}")
+                redis_client.lpush(NOTIFICATIONS_KEY, json.dumps(notification_dict))
+                print(f"⚠️ ASYNC: Low stock alert sent: {message}")
+            except Exception as e:
+                print(f"❌ Error storing low stock alert in Redis: {e}")
+                import traceback
+                print(f"🔍 DEBUG: Full error traceback: {traceback.format_exc()}")
             
         elif notification_type == "out_of_stock_alert":
             # Process out of stock alert
@@ -159,8 +206,16 @@ def process_notification(notification_data: Dict[str, Any]):
                 recipient="admin@company.com"
             )
             
-            notifications_db.append(notification.dict())
-            print(f"🚨 ASYNC: Out of stock alert sent: {message}")
+            try:
+                # Store notification in Redis
+                notification_dict = notification_to_dict(notification)
+                print(f"🔍 DEBUG: Out of stock notification dict: {notification_dict}")
+                redis_client.lpush(NOTIFICATIONS_KEY, json.dumps(notification_dict))
+                print(f"🚨 ASYNC: Out of stock alert sent: {message}")
+            except Exception as e:
+                print(f"❌ Error storing out of stock alert in Redis: {e}")
+                import traceback
+                print(f"🔍 DEBUG: Full error traceback: {traceback.format_exc()}")
             
         else:
             print(f"❓ ASYNC: Unknown notification type: {notification_type}")
@@ -206,39 +261,95 @@ async def startup_event():
 
 @app.get("/notifications/stats")
 async def get_notification_stats():
-    """Get notification statistics"""
-    total_notifications = len(notifications_db)
-    
-    # Count by type
-    type_counts = {}
-    for notification in notifications_db:
-        notification_type = notification["type"]
-        type_counts[notification_type] = type_counts.get(notification_type, 0) + 1
-    
-    return {
-        "total_notifications": total_notifications,
-        "notifications_by_type": type_counts,
-        "last_notification": notifications_db[-1] if notifications_db else None
-    }
+    """Get notification statistics from Redis"""
+    try:
+        # Get all notifications from Redis
+        notifications = redis_client.lrange(NOTIFICATIONS_KEY, 0, -1)
+        
+        # Parse JSON strings back to dictionaries
+        parsed_notifications = []
+        for notification in notifications:
+            try:
+                parsed_notifications.append(json.loads(notification))
+            except json.JSONDecodeError:
+                continue
+        
+        total_notifications = len(parsed_notifications)
+        
+        # Count by type
+        type_counts = {}
+        for notification in parsed_notifications:
+            notification_type = notification["type"]
+            type_counts[notification_type] = type_counts.get(notification_type, 0) + 1
+        
+        return {
+            "total_notifications": total_notifications,
+            "notifications_by_type": type_counts,
+            "last_notification": parsed_notifications[0] if parsed_notifications else None  # Most recent is at index 0
+        }
+    except Exception as e:
+        print(f"❌ Error getting notification stats from Redis: {e}")
+        return {
+            "total_notifications": 0,
+            "notifications_by_type": {},
+            "last_notification": None
+        }
 
 @app.get("/notifications/type/{notification_type}")
 async def get_notifications_by_type(notification_type: str):
-    """Get notifications by type"""
-    filtered_notifications = [
-        notification for notification in notifications_db
-        if notification["type"] == notification_type
-    ]
-    return {"notifications": filtered_notifications}
+    """Get notifications by type from Redis"""
+    try:
+        # Get all notifications from Redis
+        notifications = redis_client.lrange(NOTIFICATIONS_KEY, 0, -1)
+        
+        # Parse JSON strings back to dictionaries and filter by type
+        filtered_notifications = []
+        for notification in notifications:
+            try:
+                parsed_notification = json.loads(notification)
+                if parsed_notification["type"] == notification_type:
+                    filtered_notifications.append(parsed_notification)
+            except json.JSONDecodeError:
+                continue
+        
+        return {"notifications": filtered_notifications}
+    except Exception as e:
+        print(f"❌ Error getting notifications by type from Redis: {e}")
+        return {"notifications": []}
 
 @app.delete("/notifications/{notification_id}")
 async def delete_notification(notification_id: str):
-    """Delete a notification"""
-    for i, notification in enumerate(notifications_db):
-        if notification["notification_id"] == notification_id:
-            deleted_notification = notifications_db.pop(i)
-            return {"message": f"Notification {notification_id} deleted", "notification": deleted_notification}
-    
-    raise HTTPException(status_code=404, detail="Notification not found")
+    """Delete a notification from Redis"""
+    try:
+        # Get all notifications from Redis
+        notifications = redis_client.lrange(NOTIFICATIONS_KEY, 0, -1)
+        
+        # Find the notification to delete
+        for i, notification in enumerate(notifications):
+            try:
+                parsed_notification = json.loads(notification)
+                if parsed_notification["notification_id"] == notification_id:
+                    # Remove the notification from Redis
+                    redis_client.lrem(NOTIFICATIONS_KEY, 1, notification)
+                    return {"message": f"Notification {notification_id} deleted", "notification": parsed_notification}
+            except json.JSONDecodeError:
+                continue
+        
+        raise HTTPException(status_code=404, detail="Notification not found")
+    except Exception as e:
+        print(f"❌ Error deleting notification from Redis: {e}")
+        raise HTTPException(status_code=500, detail="Error deleting notification")
+
+@app.delete("/notifications")
+async def clear_all_notifications():
+    """Clear all notifications from Redis"""
+    try:
+        # Delete the notifications key from Redis
+        redis_client.delete(NOTIFICATIONS_KEY)
+        return {"message": "All notifications cleared from Redis"}
+    except Exception as e:
+        print(f"❌ Error clearing notifications from Redis: {e}")
+        raise HTTPException(status_code=500, detail="Error clearing notifications")
 
 if __name__ == "__main__":
     import uvicorn

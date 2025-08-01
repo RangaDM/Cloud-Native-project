@@ -25,29 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Redis connection for async communication
-def get_redis_url():
-    """Get Redis URL from service discovery or environment variable"""
-    try:
-        # Try to get Redis IP from service discovery
-        redis_service_url = get_service_url("redis", 6379)
-        if redis_service_url:
-            # Extract IP from the service URL and create Redis URL
-            from urllib.parse import urlparse
-            parsed_url = urlparse(redis_service_url)
-            redis_ip = parsed_url.hostname
-            return f"redis://{redis_ip}:6379"
-    except Exception as e:
-        print(f"⚠️ Failed to get Redis URL from service discovery: {e}")
-    
-    # Fallback to environment variable
-    return os.getenv("REDIS_URL", "redis://localhost:6379")
-
-redis_client = redis.Redis.from_url(
-    get_redis_url(),
-    decode_responses=True
-)
-
 # Service discovery initialization
 GITHUB_REPO_URL = os.getenv("GITHUB_REPO_URL", "https://github.com/RangaDM/cloud-components-config")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "order-service")
@@ -59,6 +36,39 @@ try:
     print(f"✅ Service discovery initialized for {SERVICE_NAME}")
 except Exception as e:
     print(f"⚠️ Failed to initialize service discovery: {e}")
+
+# Redis connection for async communication
+def get_redis_url():
+    """Get Redis URL from service discovery or environment variable"""
+    try:
+        # Try to get Redis IP from service discovery
+        print("🔍 DEBUG: Attempting to get Redis URL from service discovery...")
+        redis_service_url = get_service_url("redis", 6379)
+        print(f"🔍 DEBUG: Service discovery returned: {redis_service_url}")
+        
+        if redis_service_url:
+            # Extract IP from the service URL and create Redis URL
+            from urllib.parse import urlparse
+            parsed_url = urlparse(redis_service_url)
+            redis_ip = parsed_url.hostname
+            redis_url = f"redis://{redis_ip}:6379"
+            print(f"🔍 DEBUG: Using Redis URL from service discovery: {redis_url}")
+            return redis_url
+        else:
+            print("🔍 DEBUG: Service discovery returned None, using fallback")
+    except Exception as e:
+        print(f"⚠️ Failed to get Redis URL from service discovery: {e}")
+    
+    # Fallback to environment variable
+    fallback_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    print(f"🔍 DEBUG: Using fallback Redis URL: {fallback_url}")
+    return fallback_url
+
+# Initialize Redis client after service discovery
+redis_client = redis.Redis.from_url(
+    get_redis_url(),
+    decode_responses=True
+)
 
 # Fallback URLs for synchronous communication (used if service discovery fails)
 # INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://localhost:8002")

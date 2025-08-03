@@ -301,3 +301,6 @@ test_frontend_connectivity.py
 
 # Shell script
 setup-kind.sh
+
+# kubernetes files
+k8s/

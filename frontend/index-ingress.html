@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microservices Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-shopping-cart"></i> E-Commerce Management System</h1>
+            <p>Order Management • Inventory Control • Notification Center</p>
+        </header>
+
+        <div class="status-bar">
+            <div id="order-status" class="status offline">Order Service: Checking...</div>
+            <div id="inventory-status" class="status offline">Inventory Service: Checking...</div>
+            <div id="notification-status" class="status offline">Notification Service: Checking...</div>
+        </div>
+
+        <div class="main-content">
+            <!-- Order Management Section -->
+            <section class="card">
+                <h2>📦 Order Management</h2>
+                <form id="order-form">
+                    <div class="form-group">
+                        <label for="user_id">User ID:</label>
+                        <input type="text" id="user_id" name="user_id" value="user123" required>
+                    </div>
+                    
+                    <div id="order-items">
+                        <div class="order-item">
+                            <div class="form-group">
+                                <label>Product:</label>
+                                <select name="product_id" required>
+                                    <option value="">Select a product</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Quantity:</label>
+                                <input type="number" name="quantity" value="1" min="1" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" onclick="addOrderItem()">Add Item</button>
+                    <button type="submit">Create Order</button>
+                </form>
+                <div id="order-results" class="result" style="display: none;"></div>
+            </section>
+
+            <!-- Inventory Management Section -->
+            <section class="card">
+                <h2>📋 Inventory Management</h2>
+                <div class="actions">
+                    <button onclick="refreshInventory()">Refresh Inventory</button>
+                    <button onclick="testLowStock()">Check Low Stock</button>
+                </div>
+                <div id="inventory-list"></div>
+                <div id="inventory-results" class="result" style="display: none;"></div>
+            </section>
+
+            <!-- Notification Management Section -->
+            <section class="card">
+                <h2>🔔 Notification Management</h2>
+                <div class="actions">
+                    <button onclick="refreshNotifications()">Refresh Notifications</button>
+                    <button onclick="clearNotifications()">Clear All Notifications</button>
+                </div>
+                <div id="notifications-list"></div>
+                <div id="notification-results" class="result" style="display: none;"></div>
+            </section>
+
+            <!-- Communication Log Section -->
+            <section class="card">
+                <h2>📊 Communication Log</h2>
+                <div class="actions">
+                    <button onclick="clearLog()">Clear Log</button>
+                    <button onclick="exportLog()">Export Log</button>
+                </div>
+                <div id="communication-log" class="log-container"></div>
+            </section>
+        </div>
+    </div>
+
+    <script src="script-ingress.js"></script>
+</body>
+</html> 

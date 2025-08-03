@@ -298,3 +298,6 @@ test_api_format.py
 test_communication.py
 test_docker_frontend.py
 test_frontend_connectivity.py
+
+# Shell script
+setup-kind.sh

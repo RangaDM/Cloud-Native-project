@@ -14,10 +14,13 @@ def main():
     # Get port from environment or use default
     PORT = int(os.getenv('PORT', 8080))
     
-    # Create a custom handler that serves files from the current directory
+    # Create a custom handler that serves files from the frontend directory
     class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=".", **kwargs)
+            # Get the directory where this script is located
+            # super().__init__(*args, directory=".", **kwargs)
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            super().__init__(*args, directory=script_dir, **kwargs)
         
         def end_headers(self):
             # Add CORS headers to allow API calls
@@ -33,8 +36,9 @@ def main():
     
     try:
         with socketserver.TCPServer(("", PORT), CustomHTTPRequestHandler) as httpd:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
             print(f"🌐 Frontend server started at http://localhost:{PORT}")
-            print(f"📁 Serving files from: {os.path.abspath('.')}")
+            print(f"📁 Serving files from: {script_dir}")
             print(f"🔗 Make sure your microservices are running on ports 8001, 8002, and 8003")
             print(f"⏹️  Press Ctrl+C to stop the server")
             print(f"\n🎯 Open your browser and visit: http://localhost:{PORT}")
